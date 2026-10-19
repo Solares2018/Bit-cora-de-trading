@@ -3,8 +3,8 @@
 Este archivo registra el progreso, las funcionalidades implementadas y la estructura actual del proyecto para asegurar la continuidad del desarrollo.
 
 ## Estado Actual del Proyecto
-**Fecha de última actualización:** 15 de Febrero de 2026
-**Versión:** 2.1 (Multi-Cuenta + Gold Ticker)
+**Fecha de última actualización:** 16 de Octubre de 2026
+**Versión:** 3.0 (Rediseño Neon/Plata/Oro + Análisis)
 
 ## Estructura de Archivos
 - `index.html`: Estructura principal, contiene el dashboard, modales de gestión y navegación.
@@ -37,9 +37,25 @@ Este archivo registra el progreso, las funcionalidades implementadas y la estruc
 - Tablas con estilos de ganancias (verde) y pérdidas (rojo).
 - Diseño responsivo para adaptación a diferentes pantallas.
 
+## Versión 3.0 (Oct 2026)
+- Nuevo logo FX KINGS (`assets/logo-fxkings.png`, transparente) en sidebar y en el PDF (`assets/logo-data.js` lo embebe en base64).
+- Paleta: negro, plata/blanco, verde neón (#A8FF2E) y acentos dorados (#E6C46A).
+- Animaciones hover en botones (brillo/barrido, elevación, glow), tarjetas con luz que sigue al mouse.
+- Cursor de velas: el movimiento del mouse deja velas verdes al subir y rojas al bajar (canvas `#candle-cursor`).
+- Dashboard: se eliminó "Zonas Operadas"; se agregó Win Rate y filtro por periodo (Hoy, Semana, Mes, Año, Todo, Rango) que afecta tarjetas y curva.
+- Precio del oro en tarjeta de cristal (API gold-api.com cada 30 s; respaldo TradingView si falla). Variación = desde la primera lectura del día.
+- Bitácora: panel "Análisis de Rendimiento" al final (lotes totales, profit neto, max drawdown $ y %, ganancia/pérdida bruta, profit factor, win rate, mejor/peor op, resumen automático). Respeta el filtro de fechas.
+- PDF exportado: encabezado con logo, tabla y análisis completo al final.
+- Perfil: avatar limitado a 150 px circular; la foto subida se recorta a cuadrado 400 px. Se separó "Nombre del Trader" de "Nombre de la Cuenta".
+
 ## Notas para el Futuro
 - **Seguridad de Datos**: Actualmente los datos residen en `localStorage`. Para mayor seguridad, considerar exportación/importación de JSON backup.
 - **API Real**: El precio es visual; para usar precios en cálculos automáticos se requeriría una API de datos de mercado backend.
 
 ---
 *Este documento debe actualizarse con cada nueva funcionalidad mayor agregada.*
+
+## Versión 3.1 (18 Oct 2026)
+- Cuenta **ANDRU** precargada (`data/andru-seed.js`): 40 operaciones XAUUSD del 15–16 Oct 2026, balance inicial $16,596.70, P/L +$135.45. Se agrega una sola vez por navegador.
+- Botones **Guardar Respaldo / Cargar Respaldo** (JSON) en Cuentas.
+- El importador de PDF ahora lee también los reportes exportados por la v3 (sin zonas, resultado con +$/-$).

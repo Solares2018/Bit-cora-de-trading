@@ -4,11 +4,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FXKINGS Trading Dashboard</title>
+    <title>FXKINGS Trading Journal</title>
+    <link rel="icon" type="image/png" href="assets/logo-fxkings.png">
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <!-- Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- PDF Lib for Export -->
@@ -17,36 +18,43 @@
     <!-- PDF.js for Import -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- Chart.js -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <!-- Custom CSS -->
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
+    <!-- Capa del cursor de velas -->
+    <canvas id="candle-cursor"></canvas>
+    <div class="bg-grid"></div>
+    <div class="bg-glow"></div>
+
     <div class="app-container">
         <!-- Sidebar -->
         <aside class="sidebar">
             <div class="brand">
-                <div class="logo-container">
-                    <img src="assets/logo.png" alt="FXKINGS Logo" id="app-logo" class="logo-img">
-                </div>
-                <h2>FXKINGS</h2>
+                <img src="assets/logo-fxkings.png" alt="FX KINGS" id="app-logo" class="logo-img">
+                <span class="brand-tag">TRADING JOURNAL</span>
             </div>
 
             <nav class="nav-menu">
                 <button class="nav-btn active" data-target="dashboard">
-                    <i class="fas fa-chart-line"></i> Dashboard
+                    <i class="fas fa-chart-line"></i> <span>Dashboard</span>
                 </button>
                 <button class="nav-btn" data-target="operations">
-                    <i class="fas fa-list"></i> Bitácora
+                    <i class="fas fa-list"></i> <span>Bitácora</span>
                 </button>
                 <button class="nav-btn" data-target="accounts">
-                    <i class="fas fa-users-viewfinder"></i> Cuentas
+                    <i class="fas fa-users-viewfinder"></i> <span>Cuentas</span>
                 </button>
                 <button class="nav-btn" data-target="profile">
-                    <i class="fas fa-user-gear"></i> Perfil
+                    <i class="fas fa-user-gear"></i> <span>Perfil</span>
                 </button>
             </nav>
+
+            <div class="sidebar-footer">
+                <span class="dot"></span> Powered by FX KINGS
+            </div>
         </aside>
 
         <!-- Main Content -->
@@ -69,31 +77,19 @@
                 </div>
 
                 <div class="user-profile">
-                    <!-- Gold Price Wing -->
-                    <div class="gold-price-wing">
-                        <div class="gold-ingot-wrapper">
-                            <div class="gold-ingot">
-                                <i class="fas fa-cube"></i>
-                            </div>
+                    <!-- Precio del oro: tarjeta de cristal -->
+                    <div class="gold-glass" id="gold-glass" title="Precio spot del oro">
+                        <div class="gold-glass-shine"></div>
+                        <div class="gold-glass-head">
+                            <span class="gold-symbol"><i class="fas fa-coins"></i> XAU/USD</span>
+                            <span class="gold-live"><span class="live-dot"></span>LIVE</span>
                         </div>
-                        <div class="gold-ribbon-enhanced">
-                            <!-- TradingView Widget BEGIN -->
-                            <div class="tradingview-widget-container">
-                                <div class="tradingview-widget-container__widget"></div>
-                                <script type="text/javascript"
-                                    src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js"
-                                    async>
-                                        {
-                                            "symbol": "OANDA:XAUUSD",
-                                                "width": "100%",
-                                                    "colorTheme": "dark",
-                                                        "isTransparent": true,
-                                                            "locale": "es"
-                                        }
-                                    </script>
-                            </div>
-                            <!-- TradingView Widget END -->
+                        <div class="gold-glass-body">
+                            <span class="gold-price" id="gold-price">----.--</span>
+                            <span class="gold-change" id="gold-change">&nbsp;</span>
                         </div>
+                        <!-- Respaldo: TradingView, solo si la API falla -->
+                        <div class="gold-fallback hidden" id="gold-fallback"></div>
                     </div>
 
                     <span id="header-user-name">Trader</span>
@@ -107,54 +103,78 @@
             <section id="dashboard" class="view-section active">
                 <div class="dashboard-header-row">
                     <h1 class="page-title">Resumen de Cuenta</h1>
+
+                    <div class="period-filter" id="period-filter">
+                        <button class="period-btn" data-period="today">Hoy</button>
+                        <button class="period-btn" data-period="week">Semana</button>
+                        <button class="period-btn" data-period="month">Mes</button>
+                        <button class="period-btn" data-period="year">Año</button>
+                        <button class="period-btn active" data-period="all">Todo</button>
+                        <button class="period-btn" data-period="custom"><i class="far fa-calendar"></i> Rango</button>
+                    </div>
                 </div>
+
+                <div class="custom-range hidden" id="custom-range">
+                    <label>Desde</label>
+                    <input type="date" id="dash-date-start">
+                    <label>Hasta</label>
+                    <input type="date" id="dash-date-end">
+                    <button class="btn btn-primary btn-sm" id="btn-dash-range"><i class="fas fa-filter"></i> Aplicar</button>
+                </div>
+
+                <p class="period-label" id="period-label">Mostrando: todo el historial</p>
 
                 <div class="stats-grid">
                     <div class="stat-card balance-card">
-                        <div class="card-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="card-icon gold"><i class="fas fa-wallet"></i></div>
                         <div class="card-info">
                             <h3>Balance Total</h3>
-                            <p class="stat-value highlight" id="total-balance">$0.00</p>
+                            <p class="stat-value silver" id="total-balance">$0.00</p>
                             <span class="subtitle">Inicial: <span id="initial-balance-display">$0.00</span></span>
-                        </div>
-                    </div>
-
-                    <div class="stat-card win-card">
-                        <div class="card-icon"><i class="fas fa-trophy"></i></div>
-                        <div class="card-info">
-                            <h3>Operaciones Ganadas</h3>
-                            <p class="stat-value success" id="wins-count">0</p>
-                        </div>
-                    </div>
-
-                    <div class="stat-card loss-card">
-                        <div class="card-icon"><i class="fas fa-skull-crossbones"></i></div>
-                        <div class="card-info">
-                            <h3>Operaciones Perdidas</h3>
-                            <p class="stat-value danger" id="losses-count">0</p>
                         </div>
                     </div>
 
                     <div class="stat-card pnl-card">
                         <div class="card-icon"><i class="fas fa-chart-pie"></i></div>
                         <div class="card-info">
-                            <h3>P/L Neto</h3>
+                            <h3>P/L del Periodo</h3>
                             <p class="stat-value" id="net-pnl">$0.00</p>
+                            <span class="subtitle" id="pnl-pct">0.00% sobre balance</span>
                         </div>
                     </div>
 
-                    <div class="stat-card zones-card">
-                        <div class="card-icon"><i class="fas fa-layer-group"></i></div>
+                    <div class="stat-card win-card">
+                        <div class="card-icon"><i class="fas fa-trophy"></i></div>
                         <div class="card-info">
-                            <h3>Zonas Operadas</h3>
-                            <p class="stat-value highlight" id="zones-count">0</p>
+                            <h3>Ganadas</h3>
+                            <p class="stat-value success" id="wins-count">0</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card loss-card">
+                        <div class="card-icon red"><i class="fas fa-skull-crossbones"></i></div>
+                        <div class="card-info">
+                            <h3>Perdidas</h3>
+                            <p class="stat-value danger" id="losses-count">0</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card winrate-card">
+                        <div class="card-icon gold"><i class="fas fa-bullseye"></i></div>
+                        <div class="card-info">
+                            <h3>Win Rate</h3>
+                            <p class="stat-value gold-text" id="winrate">0%</p>
+                            <span class="subtitle"><span id="ops-count">0</span> operaciones</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="dashboard-chart-container">
-                    <h3>Rendimiento Reciente</h3>
-                    <canvas id="performanceChart"></canvas>
+                    <div class="chart-head">
+                        <h3>Curva de Balance</h3>
+                        <span class="chart-sub" id="chart-sub">Todo el historial</span>
+                    </div>
+                    <div class="chart-wrap"><canvas id="performanceChart"></canvas></div>
                 </div>
             </section>
 
@@ -162,10 +182,20 @@
             <section id="accounts" class="view-section">
                 <div class="section-header">
                     <h1 class="page-title">Mis Cuentas de Trading</h1>
-                    <button class="btn btn-primary" id="btn-new-account">
-                        <i class="fas fa-plus-circle"></i> Nueva Cuenta
-                    </button>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="btn-new-account">
+                            <i class="fas fa-plus-circle"></i> Nueva Cuenta
+                        </button>
+                        <button class="btn btn-secondary" id="btn-backup-export" title="Descarga todas tus cuentas y operaciones en un archivo">
+                            <i class="fas fa-download"></i> Guardar Respaldo
+                        </button>
+                        <button class="btn btn-secondary" id="btn-backup-import" title="Carga un respaldo .json guardado antes">
+                            <i class="fas fa-upload"></i> Cargar Respaldo
+                        </button>
+                        <input type="file" id="backup-file-input" accept=".json,application/json" hidden>
+                    </div>
                 </div>
+                <p class="period-label">Tus datos se guardan en este navegador. Usa <strong>Guardar Respaldo</strong> con frecuencia para no perderlos o pasarlos a otra computadora.</p>
 
                 <div class="accounts-grid" id="accounts-list">
                     <!-- Accounts injected via JS -->
@@ -296,7 +326,8 @@
                             <input type="date" id="filter-date-start">
                             <label>Hasta:</label>
                             <input type="date" id="filter-date-end">
-                            <button id="btn-apply-filter" class="btn-icon"><i class="fas fa-search"></i></button>
+                            <button id="btn-apply-filter" class="btn-icon btn-search" title="Filtrar"><i class="fas fa-search"></i></button>
+                            <button id="btn-clear-filter" class="btn-icon btn-search" title="Limpiar filtro"><i class="fas fa-rotate-left"></i></button>
                         </div>
                         <button class="btn btn-danger" id="btn-delete-selected" disabled>
                             <i class="fas fa-trash"></i> Borrar Seleccionados
@@ -323,6 +354,63 @@
                         </table>
                     </div>
                 </div>
+
+                <!-- Análisis de rendimiento (final de página) -->
+                <div class="analysis-panel" id="analysis-panel">
+                    <div class="analysis-header">
+                        <div>
+                            <h2><i class="fas fa-magnifying-glass-chart"></i> Análisis de Rendimiento</h2>
+                            <p class="analysis-scope" id="analysis-scope">Todas las operaciones de la cuenta</p>
+                        </div>
+                    </div>
+
+                    <div class="analysis-grid">
+                        <div class="metric">
+                            <span class="metric-label">Lotes Movidos</span>
+                            <span class="metric-value silver" id="an-lots">0.00</span>
+                            <span class="metric-sub" id="an-lots-avg">Promedio 0.00 / op</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Profit Total (P/L Neto)</span>
+                            <span class="metric-value" id="an-net">$0.00</span>
+                            <span class="metric-sub" id="an-net-pct">0.00% de la cuenta</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Máximo Drawdown</span>
+                            <span class="metric-value danger" id="an-dd">$0.00</span>
+                            <span class="metric-sub" id="an-dd-pct">0.00% desde el pico</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Ganancia Bruta</span>
+                            <span class="metric-value success" id="an-gross-win">$0.00</span>
+                            <span class="metric-sub">Suma de operaciones ganadoras</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Pérdida Bruta</span>
+                            <span class="metric-value danger" id="an-gross-loss">$0.00</span>
+                            <span class="metric-sub">Suma de operaciones perdedoras</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Profit Factor</span>
+                            <span class="metric-value gold-text" id="an-pf">0.00</span>
+                            <span class="metric-sub">Ganancia ÷ pérdida bruta</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Win Rate</span>
+                            <span class="metric-value gold-text" id="an-wr">0%</span>
+                            <span class="metric-sub" id="an-wl">0 G / 0 P</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Mejor / Peor Operación</span>
+                            <span class="metric-value small"><span class="success" id="an-best">$0</span> <span class="sep">/</span> <span class="danger" id="an-worst">$0</span></span>
+                            <span class="metric-sub" id="an-avg">Promedio G $0 · P $0</span>
+                        </div>
+                    </div>
+
+                    <div class="analysis-summary" id="analysis-summary">
+                        Registra operaciones para generar el análisis.
+                    </div>
+                </div>
             </section>
 
             <!-- Profile View -->
@@ -339,22 +427,32 @@
                             </label>
                             <input type="file" id="profile-pic-input" accept="image/*" hidden>
                         </div>
-                        <div class="form-group">
-                            <label>Nombre del Trader</label>
-                            <input type="text" id="profile-name" placeholder="Tu Nombre">
+                        <div class="profile-fields">
+                            <div class="form-group">
+                                <label>Nombre del Trader</label>
+                                <input type="text" id="profile-name" placeholder="Tu Nombre">
+                            </div>
+                            <div class="form-group">
+                                <label>Nombre de la Cuenta Activa</label>
+                                <input type="text" id="profile-account-name" placeholder="Cuenta Principal">
+                            </div>
+                            <div class="form-group">
+                                <label>Balance Inicial ($)</label>
+                                <input type="number" step="0.01" id="profile-initial-balance">
+                            </div>
+                            <button type="submit" class="btn btn-submit">Guardar Cambios</button>
                         </div>
-                        <div class="form-group">
-                            <label>Balance Inicial ($)</label>
-                            <input type="number" step="0.01" id="profile-initial-balance">
-                        </div>
-                        <button type="submit" class="btn btn-submit">Guardar Cambios</button>
                     </form>
                 </div>
             </section>
         </main>
     </div>
 
+    <div class="toast" id="toast"></div>
+
     <!-- Scripts -->
+    <script src="assets/logo-data.js"></script>
+    <script src="data/andru-seed.js"></script>
     <script src="script.js"></script>
 </body>
 
