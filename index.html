@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FXKINGS Trading Dashboard</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- PDF Lib for Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.28/jspdf.plugin.autotable.min.js"></script>
+    <!-- PDF.js for Import -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="logo-container">
+                    <img src="assets/logo.png" alt="FXKINGS Logo" id="app-logo" class="logo-img">
+                </div>
+                <h2>FXKINGS</h2>
+            </div>
+
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-target="dashboard">
+                    <i class="fas fa-chart-line"></i> Dashboard
+                </button>
+                <button class="nav-btn" data-target="operations">
+                    <i class="fas fa-list"></i> Bitácora
+                </button>
+                <button class="nav-btn" data-target="accounts">
+                    <i class="fas fa-users-viewfinder"></i> Cuentas
+                </button>
+                <button class="nav-btn" data-target="profile">
+                    <i class="fas fa-user-gear"></i> Perfil
+                </button>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="top-bar">
+                <div class="market-status">
+                    <div class="status-indicator">
+                        <span class="pulse"></span>
+                        <span id="market-name">Cargando Mercado...</span>
+                    </div>
+                    <div class="market-time">
+                        <i class="far fa-clock"></i> <span id="current-time">--:--</span>
+                    </div>
+                </div>
+
+                <div class="current-account-display" id="header-account-display">
+                    <span class="label">Cuenta Activa:</span>
+                    <span class="value" id="active-account-name">Cargando...</span>
+                </div>
+
+                <div class="user-profile">
+                    <!-- Gold Price Wing -->
+                    <div class="gold-price-wing">
+                        <div class="gold-ingot-wrapper">
+                            <div class="gold-ingot">
+                                <i class="fas fa-cube"></i>
+                            </div>
+                        </div>
+                        <div class="gold-ribbon-enhanced">
+                            <!-- TradingView Widget BEGIN -->
+                            <div class="tradingview-widget-container">
+                                <div class="tradingview-widget-container__widget"></div>
+                                <script type="text/javascript"
+                                    src="https://s3.tradingview.com/external-embedding/embed-widget-single-quote.js"
+                                    async>
+                                        {
+                                            "symbol": "OANDA:XAUUSD",
+                                                "width": "100%",
+                                                    "colorTheme": "dark",
+                                                        "isTransparent": true,
+                                                            "locale": "es"
+                                        }
+                                    </script>
+                            </div>
+                            <!-- TradingView Widget END -->
+                        </div>
+                    </div>
+
+                    <span id="header-user-name">Trader</span>
+                    <div class="profile-pic-container">
+                        <img src="" alt="Profile" id="header-profile-pic">
+                    </div>
+                </div>
+            </header>
+
+            <!-- Dashboard View -->
+            <section id="dashboard" class="view-section active">
+                <div class="dashboard-header-row">
+                    <h1 class="page-title">Resumen de Cuenta</h1>
+                </div>
+
+                <div class="stats-grid">
+                    <div class="stat-card balance-card">
+                        <div class="card-icon"><i class="fas fa-wallet"></i></div>
+                        <div class="card-info">
+                            <h3>Balance Total</h3>
+                            <p class="stat-value highlight" id="total-balance">$0.00</p>
+                            <span class="subtitle">Inicial: <span id="initial-balance-display">$0.00</span></span>
+                        </div>
+                    </div>
+
+                    <div class="stat-card win-card">
+                        <div class="card-icon"><i class="fas fa-trophy"></i></div>
+                        <div class="card-info">
+                            <h3>Operaciones Ganadas</h3>
+                            <p class="stat-value success" id="wins-count">0</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card loss-card">
+                        <div class="card-icon"><i class="fas fa-skull-crossbones"></i></div>
+                        <div class="card-info">
+                            <h3>Operaciones Perdidas</h3>
+                            <p class="stat-value danger" id="losses-count">0</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card pnl-card">
+                        <div class="card-icon"><i class="fas fa-chart-pie"></i></div>
+                        <div class="card-info">
+                            <h3>P/L Neto</h3>
+                            <p class="stat-value" id="net-pnl">$0.00</p>
+                        </div>
+                    </div>
+
+                    <div class="stat-card zones-card">
+                        <div class="card-icon"><i class="fas fa-layer-group"></i></div>
+                        <div class="card-info">
+                            <h3>Zonas Operadas</h3>
+                            <p class="stat-value highlight" id="zones-count">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="dashboard-chart-container">
+                    <h3>Rendimiento Reciente</h3>
+                    <canvas id="performanceChart"></canvas>
+                </div>
+            </section>
+
+            <!-- Accounts View -->
+            <section id="accounts" class="view-section">
+                <div class="section-header">
+                    <h1 class="page-title">Mis Cuentas de Trading</h1>
+                    <button class="btn btn-primary" id="btn-new-account">
+                        <i class="fas fa-plus-circle"></i> Nueva Cuenta
+                    </button>
+                </div>
+
+                <div class="accounts-grid" id="accounts-list">
+                    <!-- Accounts injected via JS -->
+                </div>
+
+                <!-- Account Modal -->
+                <div id="account-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <span class="close-modal" id="close-account-modal">&times;</span>
+                        <h2 id="account-modal-title">Crear Nueva Cuenta</h2>
+                        <form id="account-form">
+                            <input type="hidden" id="edit-acc-id">
+                            <div class="form-group">
+                                <label>Nombre de la Cuenta</label>
+                                <input type="text" id="acc-name-input" placeholder="Ej. Reto Fondeo 10k" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Capital Inicial ($)</label>
+                                <input type="number" step="0.01" id="acc-balance-input" placeholder="10000" required>
+                            </div>
+                            <button type="submit" class="btn btn-submit" id="account-submit-btn">Crear Cuenta</button>
+                        </form>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Operations View -->
+            <section id="operations" class="view-section">
+                <div class="section-header">
+                    <h1 class="page-title">Bitácora de Operaciones</h1>
+                    <div class="action-buttons">
+                        <button class="btn btn-primary" id="btn-add-operation">
+                            <i class="fas fa-plus"></i> Nueva Operación
+                        </button>
+                        <button class="btn btn-secondary" id="btn-import-pdf">
+                            <i class="fas fa-file-upload"></i> Importar PDF
+                        </button>
+                        <button class="btn btn-secondary" id="btn-export-pdf">
+                            <i class="fas fa-file-pdf"></i> Exportar PDF
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Import PDF Modal -->
+                <div id="import-pdf-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <span class="close-modal" id="close-import-modal">&times;</span>
+                        <h2>Importar Reporte PDF</h2>
+                        <div class="import-instructions">
+                            <p><i class="fas fa-info-circle"></i> Sube tu reporte FXKINGS en formato PDF.</p>
+                            <p class="warning-text"><i class="fas fa-magic"></i> El sistema procesará y cargará todas
+                                las operaciones automáticamente.</p>
+                        </div>
+                        <div class="file-upload-area" id="pdf-drop-zone">
+                            <i class="fas fa-file-invoice-dollar"></i>
+                            <p>Arrastra tu reporte aquí o haz clic para seleccionar</p>
+                            <input type="file" id="pdf-file-input" accept=".pdf" hidden>
+                            <button type="button" class="btn btn-primary" id="btn-select-pdf">
+                                <i class="fas fa-upload"></i> Cargar Reporte
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Modal para Op -->
+                <div id="operation-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <span class="close-modal">&times;</span>
+                        <h2 id="modal-title">Registrar Operación</h2>
+                        <form id="operation-form">
+                            <input type="hidden" id="edit-op-id">
+                            <div class="form-group">
+                                <label>Tipo de Operación</label>
+                                <div class="switch-field">
+                                    <input type="radio" id="radio-buy" name="op-type" value="buy" checked />
+                                    <label for="radio-buy">Compra (Buy)</label>
+                                    <input type="radio" id="radio-sell" name="op-type" value="sell" />
+                                    <label for="radio-sell">Venta (Sell)</label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Activo / Par</label>
+                                <select id="op-asset" class="custom-select" required></select>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fecha</label>
+                                    <input type="date" id="op-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora</label>
+                                    <input type="time" id="op-time" required>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Zona Superior</label>
+                                    <input type="number" step="0.00001" id="op-zone-top" placeholder="Ej. 2025.50">
+                                </div>
+                                <div class="form-group">
+                                    <label>Zona Inferior</label>
+                                    <input type="number" step="0.00001" id="op-zone-bottom" placeholder="Ej. 2018.20">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Precio Entrada</label>
+                                    <input type="number" step="0.00001" id="op-entry" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Lotaje</label>
+                                    <input type="number" step="0.01" id="op-lot" required>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Resultado ($)</label>
+                                <input type="number" step="0.01" id="op-result" required>
+                            </div>
+                            <button type="submit" class="btn btn-submit">Guardar Operación</button>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="operations-panel">
+                    <div class="filters-bar">
+                        <div class="date-filter">
+                            <label>Desde:</label>
+                            <input type="date" id="filter-date-start">
+                            <label>Hasta:</label>
+                            <input type="date" id="filter-date-end">
+                            <button id="btn-apply-filter" class="btn-icon"><i class="fas fa-search"></i></button>
+                        </div>
+                        <button class="btn btn-danger" id="btn-delete-selected" disabled>
+                            <i class="fas fa-trash"></i> Borrar Seleccionados
+                        </button>
+                    </div>
+
+                    <div class="table-container">
+                        <table id="operations-table">
+                            <thead>
+                                <tr>
+                                    <th><input type="checkbox" id="select-all"></th>
+                                    <th>Fecha</th>
+                                    <th>Activo</th>
+                                    <th>Tipo</th>
+                                    <th>Precio Ent.</th>
+                                    <th>Lotes</th>
+                                    <th>Zona Sup.</th>
+                                    <th>Zona Inf.</th>
+                                    <th>Resultado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Profile View -->
+            <section id="profile" class="view-section">
+                <h1 class="page-title">Configuración de Perfil</h1>
+                <div class="profile-card">
+                    <form id="profile-form">
+                        <div class="profile-avatar-edit">
+                            <div class="avatar-preview">
+                                <img src="" id="profile-preview-img" alt="Avatar">
+                            </div>
+                            <label for="profile-pic-input" class="btn btn-outline">
+                                <i class="fas fa-camera"></i> Cambiar Foto
+                            </label>
+                            <input type="file" id="profile-pic-input" accept="image/*" hidden>
+                        </div>
+                        <div class="form-group">
+                            <label>Nombre del Trader</label>
+                            <input type="text" id="profile-name" placeholder="Tu Nombre">
+                        </div>
+                        <div class="form-group">
+                            <label>Balance Inicial ($)</label>
+                            <input type="number" step="0.01" id="profile-initial-balance">
+                        </div>
+                        <button type="submit" class="btn btn-submit">Guardar Cambios</button>
+                    </form>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="script.js"></script>
+</body>
+
+</html>

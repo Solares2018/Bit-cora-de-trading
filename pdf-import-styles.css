@@ -1,0 +1,159 @@
+/* PDF Import Styles */
+.import-instructions {
+    background: rgba(212, 175, 55, 0.1);
+    border-left: 3px solid var(--primary-gold);
+    padding: 15px;
+    margin: 20px 0;
+    border-radius: 5px;
+}
+
+.import-instructions p {
+    margin: 8px 0;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.import-instructions i {
+    color: var(--primary-gold);
+    margin-right: 8px;
+}
+
+.file-upload-area {
+    border: 2px dashed var(--glass-border);
+    border-radius: 10px;
+    padding: 40px;
+    text-align: center;
+    background: rgba(255, 255, 255, 0.02);
+    transition: all 0.3s;
+    cursor: pointer;
+}
+
+.file-upload-area:hover {
+    border-color: var(--primary-gold);
+    background: rgba(212, 175, 55, 0.05);
+}
+
+.file-upload-area.drag-over {
+    border-color: var(--primary-gold);
+    background: rgba(212, 175, 55, 0.1);
+    transform: scale(1.02);
+}
+
+.file-upload-area i {
+    font-size: 3rem;
+    color: var(--primary-gold);
+    margin-bottom: 15px;
+    display: block;
+}
+
+.file-upload-area p {
+    color: var(--text-secondary);
+    margin-bottom: 20px;
+}
+
+.pdf-preview {
+    margin-top: 25px;
+    padding-top: 25px;
+    border-top: 1px solid var(--glass-border);
+}
+
+.pdf-preview h3 {
+    color: var(--primary-gold);
+    margin-bottom: 15px;
+    font-size: 1.1rem;
+}
+
+.detected-ops-list {
+    max-height: 300px;
+    overflow-y: auto;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+
+.detected-op-item {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--glass-border);
+    border-radius: 5px;
+    padding: 12px;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    transition: all 0.2s;
+}
+
+.detected-op-item:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--primary-gold);
+}
+
+.detected-op-info {
+    flex: 1;
+}
+
+.detected-op-info strong {
+    color: var(--primary-gold);
+    margin-right: 10px;
+}
+
+.detected-op-info span {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-right: 15px;
+}
+
+.detected-op-result {
+    font-weight: 700;
+    font-size: 1.1rem;
+}
+
+.detected-op-result.positive {
+    color: var(--success);
+}
+
+.detected-op-result.negative {
+    color: var(--danger);
+}
+
+.import-actions {
+    display: flex;
+    gap: 15px;
+    justify-content: center;
+}
+
+.import-actions .btn {
+    min-width: 180px;
+}
+
+#import-count {
+    font-weight: 700;
+    color: var(--primary-gold);
+}
+
+.processing-indicator {
+    text-align: center;
+    padding: 30px;
+}
+
+.processing-indicator i {
+    font-size: 2rem;
+    color: var(--primary-gold);
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+.processing-indicator p {
+    margin-top: 15px;
+    color: var(--text-secondary);
+}
