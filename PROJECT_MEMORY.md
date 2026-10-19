@@ -59,3 +59,9 @@ Este archivo registra el progreso, las funcionalidades implementadas y la estruc
 - Cuenta **ANDRU** precargada (`data/andru-seed.js`): 40 operaciones XAUUSD del 15–16 Oct 2026, balance inicial $16,596.70, P/L +$135.45. Se agrega una sola vez por navegador.
 - Botones **Guardar Respaldo / Cargar Respaldo** (JSON) en Cuentas.
 - El importador de PDF ahora lee también los reportes exportados por la v3 (sin zonas, resultado con +$/-$).
+
+## Versión 3.2 (18 Oct 2026) — Nube
+- Firebase Auth (correo/contraseña) + Firestore: documento `bitacoras/{uid}` con todo `appData` como JSON.
+- Guardado automático (agrupado cada 0.7 s), caché offline, sincronización en tiempo real entre dispositivos.
+- Indicador de estado en la barra superior; botón Cerrar sesión en el menú.
+- Si `firebase-config.js` está vacío, funciona en modo local como antes.

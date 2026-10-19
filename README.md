@@ -8,8 +8,13 @@ Bitácora de trading de FX KINGS (dashboard, bitácora de operaciones, cuentas y
 - `index.html`, `style.css`, `script.js` — la aplicación
 - `assets/` — logo FX KINGS
 - `data/andru-seed.js` — cuenta ANDRU precargada
+- `firebase-config.js` — datos de tu proyecto Firebase
+- `cloud.js` — guardado en la nube
+- `firestore.rules` — reglas de seguridad para pegar en Firebase
 
-## Importante sobre los datos
-Las operaciones nuevas se guardan en el navegador (localStorage), no en GitHub.
-Usa **Cuentas → Guardar Respaldo** para descargar un `.json` y conservarlo
-(puedes subirlo a la carpeta `data/` del repo como copia de seguridad).
+## Guardado de datos
+- **Con Firebase configurado** (ver `GUIA-FIREBASE.md`): inicio de sesión con correo y contraseña;
+  cada cambio se guarda solo en la nube y se sincroniza en tiempo real entre dispositivos.
+  Funciona sin internet y sube los cambios al reconectar.
+- **Sin configurar** (`firebase-config.js` vacío): modo local, guarda solo en ese navegador.
+- En ambos casos: **Cuentas → Guardar Respaldo** descarga una copia `.json`.

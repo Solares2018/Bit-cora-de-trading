@@ -16,51 +16,48 @@ document.addEventListener('DOMContentLoaded', () => {
         </svg>`);
 
     // --- State Management ---
-    let appData = {
-        userProfile: { name: "Trader", image: DEFAULT_AVATAR },
-        currentAccountId: null,
-        accounts: []
-    };
-
-    // Load Data & Migration
-    const savedData = localStorage.getItem('fxkings_data');
-    if (savedData) {
-        const parsed = JSON.parse(savedData);
-        if (!parsed.accounts) {
-            const defaultAccount = {
-                id: Date.now(),
-                name: parsed.profile?.name || "Cuenta Principal",
-                initialBalance: parsed.profile?.initialBalance || 1000,
-                operations: parsed.operations || []
-            };
-            appData.userProfile.name = parsed.profile?.name || "Trader";
-            appData.userProfile.image = parsed.profile?.image || DEFAULT_AVATAR;
-            appData.accounts = [defaultAccount];
-            appData.currentAccountId = defaultAccount.id;
-        } else {
-            appData = parsed;
-        }
-    } else {
-        const defaultId = Date.now();
-        appData.accounts = [{ id: defaultId, name: "Cuenta Principal", initialBalance: 1000, operations: [] }];
-        appData.currentAccountId = defaultId;
+    function freshData() {
+        const id = Date.now();
+        return {
+            userProfile: { name: "Trader", image: DEFAULT_AVATAR },
+            currentAccountId: id,
+            accounts: [{ id, name: "Cuenta Principal", initialBalance: 1000, operations: [] }]
+        };
     }
 
-    if (!appData.userProfile) appData.userProfile = { name: "Trader", image: DEFAULT_AVATAR };
-    if (!appData.userProfile.image || appData.userProfile.image === 'assets/default-avatar.png') {
-        appData.userProfile.image = DEFAULT_AVATAR;
+    // Normaliza datos (incluye migración del formato antiguo sin "accounts")
+    function normalizeData(parsed) {
+        let d;
+        if (!parsed) d = freshData();
+        else if (!parsed.accounts) {
+            d = freshData();
+            d.accounts[0].name = parsed.profile?.name || "Cuenta Principal";
+            d.accounts[0].initialBalance = parsed.profile?.initialBalance || 1000;
+            d.accounts[0].operations = parsed.operations || [];
+            d.userProfile.name = parsed.profile?.name || "Trader";
+            d.userProfile.image = parsed.profile?.image || DEFAULT_AVATAR;
+        } else d = parsed;
+
+        if (!d.userProfile) d.userProfile = { name: "Trader", image: DEFAULT_AVATAR };
+        if (!d.userProfile.image || d.userProfile.image === 'assets/default-avatar.png') d.userProfile.image = DEFAULT_AVATAR;
+        if (!Array.isArray(d.accounts) || d.accounts.length === 0) d.accounts = freshData().accounts;
+        if (!d.accounts.find(a => a.id === d.currentAccountId)) d.currentAccountId = d.accounts[0].id;
+        return d;
     }
-    if (!appData.currentAccountId && appData.accounts.length > 0) {
-        appData.currentAccountId = appData.accounts[0].id;
+
+    function loadLocal() {
+        try { return JSON.parse(localStorage.getItem('fxkings_data')); } catch (e) { return null; }
     }
+
+    let appData = normalizeData(loadLocal());
 
     // --- Cuentas precargadas (data/andru-seed.js) ---
-    // Se agregan una sola vez por navegador; si después borras la cuenta, no vuelve a aparecer.
-    (function applySeed() {
+    // Se agregan una sola vez; si después borras la cuenta, no vuelve a aparecer.
+    function applySeed() {
         const seed = window.FXK_SEED;
-        if (!seed || !Array.isArray(seed.accounts)) return;
+        if (!seed || !Array.isArray(seed.accounts)) return false;
         appData.seedApplied = appData.seedApplied || [];
-        let added = null;
+        let added = null, changed = false;
         seed.accounts.forEach(sa => {
             const key = `${sa.seedId}@v${seed.version}`;
             if (appData.seedApplied.includes(key)) return;
@@ -73,6 +70,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 added = acc;
             }
             appData.seedApplied.push(key);
+            changed = true;
         });
         if (added) {
             // Quita la cuenta vacía de ejemplo ("Cuenta Principal", $1,000, sin operaciones)
@@ -81,8 +79,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const cur = appData.accounts.find(a => a.id === appData.currentAccountId);
             if (!cur || cur.operations.length === 0) appData.currentAccountId = added.id;
         }
-        try { localStorage.setItem('fxkings_data', JSON.stringify(appData)); } catch (e) { }
-    })();
+        return changed;
+    }
+
+    applySeed();
+    try { localStorage.setItem('fxkings_data', JSON.stringify(appData)); } catch (e) { }
 
     function getCurrentAccount() {
         return appData.accounts.find(a => a.id === appData.currentAccountId) || appData.accounts[0];
@@ -120,7 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const profilePreviewImg = document.getElementById('profile-preview-img');
     const profilePicInput = document.getElementById('profile-pic-input');
 
-    const navBtns = document.querySelectorAll('.nav-btn');
+    const navBtns = document.querySelectorAll('.nav-btn[data-target]');
     const sections = document.querySelectorAll('.view-section');
 
     [headerProfilePic, profilePreviewImg].forEach(img => {
@@ -309,6 +310,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = JSON.parse(await file.text());
             if (!Array.isArray(data.accounts)) throw new Error('formato');
             if (!confirm(`El respaldo tiene ${data.accounts.length} cuenta(s). ¿Reemplazar los datos actuales de este navegador?`)) return;
+            data.ownerUid = appData.ownerUid;
             appData = data;
             if (!appData.userProfile) appData.userProfile = { name: 'Trader', image: DEFAULT_AVATAR };
             if (!appData.accounts.find(a => a.id === appData.currentAccountId)) appData.currentAccountId = appData.accounts[0]?.id;
@@ -1196,8 +1198,10 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             localStorage.setItem('fxkings_data', JSON.stringify(appData));
         } catch (e) {
-            alert('No se pudo guardar: el almacenamiento del navegador está lleno.');
+            if (!window.FXKCloud?.configured) alert('No se pudo guardar: el almacenamiento del navegador está lleno.');
         }
+        // Guardado automático en la nube (si está configurada y hay sesión)
+        if (window.FXKCloud?.configured) window.FXKCloud.save(appData);
     }
 
     // --- PDF Import ---
@@ -1299,5 +1303,120 @@ document.addEventListener('DOMContentLoaded', () => {
         return operations;
     }
 
-    init();
+    // =====================================================
+    //  ARRANQUE: modo local o modo nube
+    // =====================================================
+    let started = false;
+    function startOrRefresh() {
+        if (!started) { started = true; init(); }
+        else { updateGlobalProfileUI(); refreshAllViews(); }
+    }
+
+    // Indicador de guardado
+    const syncBadge = document.getElementById('sync-badge');
+    const SYNC = {
+        local: ['fa-hard-drive', 'Modo local', 'Los datos se guardan solo en este navegador'],
+        connecting: ['fa-cloud', 'Conectando…', 'Conectando con la nube'],
+        saving: ['fa-rotate', 'Guardando…', 'Guardando en la nube'],
+        synced: ['fa-cloud', 'Guardado en la nube', 'Todo está guardado y sincronizado'],
+        offline: ['fa-wifi', 'Sin internet', 'Se guardará en la nube al volver la conexión'],
+        error: ['fa-triangle-exclamation', 'Error al guardar', 'Revisa la conexión o la configuración de Firebase']
+    };
+    function paintSync(st) {
+        const [icon, txt, tip] = SYNC[st] || SYNC.local;
+        syncBadge.className = 'sync-badge ' + st;
+        syncBadge.innerHTML = `<i class="fas ${icon}"></i> <span>${txt}</span>`;
+        syncBadge.title = tip;
+    }
+
+    const Cloud = window.FXKCloud;
+    if (Cloud) Cloud.onStatus(paintSync); else paintSync('local');
+
+    if (!Cloud || !Cloud.configured) {
+        init();
+        started = true;
+    } else {
+        const authScreen = document.getElementById('auth-screen');
+        const loadingScreen = document.getElementById('loading-screen');
+        const authForm = document.getElementById('auth-form');
+        const authEmail = document.getElementById('auth-email');
+        const authPass = document.getElementById('auth-pass');
+        const authMsg = document.getElementById('auth-msg');
+        const sidebarAccount = document.getElementById('sidebar-account');
+        const setMsg = (t, ok) => { authMsg.textContent = t || ''; authMsg.className = 'auth-msg' + (ok ? ' ok' : ''); };
+        const busy = (on) => authForm.querySelectorAll('button').forEach(b => b.disabled = on);
+
+        loadingScreen.classList.remove('hidden');
+
+        authForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            setMsg(''); busy(true);
+            try { await Cloud.signIn(authEmail.value.trim(), authPass.value); }
+            catch (err) { setMsg(err.message); }
+            finally { busy(false); }
+        });
+        document.getElementById('btn-auth-signup').addEventListener('click', async () => {
+            if (!authForm.reportValidity()) return;
+            setMsg(''); busy(true);
+            try { await Cloud.signUp(authEmail.value.trim(), authPass.value); }
+            catch (err) { setMsg(err.message); }
+            finally { busy(false); }
+        });
+        document.getElementById('btn-auth-reset').addEventListener('click', async () => {
+            if (!authEmail.value.trim()) { setMsg('Escribe tu correo arriba y vuelve a dar clic.'); return; }
+            try { await Cloud.reset(authEmail.value.trim()); setMsg('Te enviamos un correo para cambiar tu contraseña.', true); }
+            catch (err) { setMsg(err.message); }
+        });
+        document.getElementById('btn-logout').addEventListener('click', async () => {
+            if (!confirm('¿Cerrar sesión en este dispositivo?')) return;
+            await Cloud.signOut();
+        });
+
+        Cloud.onAuth(async (user) => {
+            if (!user) {
+                loadingScreen.classList.add('hidden');
+                authScreen.classList.remove('hidden');
+                sidebarAccount.classList.add('hidden');
+                return;
+            }
+            authScreen.classList.add('hidden');
+            loadingScreen.classList.remove('hidden');
+            document.getElementById('sidebar-email').textContent = user.email;
+            sidebarAccount.classList.remove('hidden');
+
+            try {
+                const remote = await Cloud.load();
+                if (remote) {
+                    appData = normalizeData(remote);
+                    if (applySeed()) Cloud.save(appData);
+                } else {
+                    // Primera vez con este usuario: sube lo que hay en este navegador
+                    // (solo si no pertenece a otro usuario; si no, empieza limpio con ANDRU precargada)
+                    if (appData.ownerUid && appData.ownerUid !== user.uid) {
+                        appData = normalizeData(null);
+                        applySeed();
+                    }
+                    Cloud.save(appData);
+                    showToast('Tu bitácora se subió a la nube');
+                }
+                appData.ownerUid = user.uid;
+                try { localStorage.setItem('fxkings_data', JSON.stringify(appData)); } catch (e) { }
+            } catch (err) {
+                alert('No se pudo cargar desde la nube: ' + err.message + '\nSe mostrarán los datos guardados en este navegador.');
+            }
+
+            loadingScreen.classList.add('hidden');
+            startOrRefresh();
+
+            // Cambios desde otro dispositivo, en tiempo real
+            Cloud.subscribe((data) => {
+                appData = normalizeData(data);
+                appData.ownerUid = user.uid;
+                try { localStorage.setItem('fxkings_data', JSON.stringify(appData)); } catch (e) { }
+                updateGlobalProfileUI();
+                refreshAllViews();
+                showToast('Datos actualizados desde otro dispositivo');
+            });
+        });
+    }
 });
