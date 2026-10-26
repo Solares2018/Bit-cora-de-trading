@@ -189,8 +189,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderAccountsList() {
         accountsListEl.innerHTML = '';
         appData.accounts.forEach(acc => {
-            const totalPnl = acc.operations.reduce((s, op) => s + op.result, 0);
-            const currentBal = acc.initialBalance + totalPnl;
+            const currentBal = accBalance(acc);
+            const wdTotal = getMovs(acc).filter(mv => mv.type !== 'deposit').reduce((s, mv) => s + Number(mv.amount || 0), 0);
             const isActive = acc.id === appData.currentAccountId;
 
             const card = document.createElement('div');
@@ -207,6 +207,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <div class="account-details">
                         <span>Inicial: ${formatCurrency(acc.initialBalance)}</span>
                         <span>Ops: ${acc.operations.length}</span>
+                        ${wdTotal ? `<span class="danger">Retiros: -${formatCurrency(wdTotal)}</span>` : ''}
                     </div>
                 </div>
                 <div class="account-actions">
@@ -492,6 +493,128 @@ document.addEventListener('DOMContentLoaded', () => {
         return acc.operations.filter(op => inRange(op, start, end));
     }
 
+    function getTableMovs() {
+        const acc = getCurrentAccount();
+        if (!acc) return [];
+        const { start, end } = getTableRange();
+        return getMovs(acc).filter(mv => inRange(mv, start, end));
+    }
+
+    // =====================================================
+    //  RETIROS Y DEPÓSITOS DE CAPITAL
+    // =====================================================
+    const movModal = document.getElementById('movement-modal');
+    const movForm = document.getElementById('movement-form');
+    const movTitle = document.getElementById('movement-modal-title');
+    const movSubmit = document.getElementById('movement-submit-btn');
+
+    function setMovType(type) {
+        document.getElementById(type === 'deposit' ? 'radio-mov-deposit' : 'radio-mov-withdrawal').checked = true;
+        const dep = type === 'deposit';
+        movSubmit.innerHTML = dep ? '<i class="fas fa-circle-plus"></i> Guardar Depósito' : '<i class="fas fa-money-bill-transfer"></i> Guardar Retiro';
+        movSubmit.classList.toggle('btn-submit-red', !dep);
+    }
+    document.querySelectorAll('input[name="mov-type"]').forEach(r => r.addEventListener('change', () => setMovType(r.value)));
+
+    function openMovementModal(type = 'withdrawal', movId = null) {
+        movForm.reset();
+        document.getElementById('edit-mov-id').value = '';
+        if (movId) {
+            const mv = getMovs(getCurrentAccount()).find(x => x.id === movId);
+            if (!mv) return;
+            movTitle.textContent = mv.type === 'deposit' ? 'Editar Depósito' : 'Editar Retiro';
+            document.getElementById('edit-mov-id').value = mv.id;
+            document.getElementById('mov-date').value = mv.date;
+            document.getElementById('mov-time').value = mv.time || '';
+            document.getElementById('mov-amount').value = mv.amount;
+            document.getElementById('mov-note').value = mv.note || '';
+            setMovType(mv.type);
+        } else {
+            movTitle.textContent = type === 'deposit' ? 'Agregar Capital' : 'Registrar Retiro';
+            const now = new Date();
+            document.getElementById('mov-date').value = toISO(now);
+            document.getElementById('mov-time').value = now.toTimeString().substring(0, 5);
+            setMovType(type);
+        }
+        const acc = getCurrentAccount();
+        document.getElementById('mov-balance-hint').textContent = `Balance actual de ${acc.name}: ${formatCurrency(accBalance(acc))}`;
+        movModal.classList.remove('hidden');
+        setTimeout(() => document.getElementById('mov-amount').focus(), 50);
+    }
+
+    document.getElementById('btn-add-withdrawal').addEventListener('click', () => openMovementModal('withdrawal'));
+    document.getElementById('btn-add-deposit').addEventListener('click', () => openMovementModal('deposit'));
+    document.getElementById('close-movement-modal').addEventListener('click', () => movModal.classList.add('hidden'));
+
+    movForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const acc = getCurrentAccount();
+        if (!acc) return;
+        const amount = Math.abs(parseFloat(document.getElementById('mov-amount').value));
+        if (!amount) { alert('Escribe un monto mayor a 0.'); return; }
+        const type = document.querySelector('input[name="mov-type"]:checked').value;
+        const data = {
+            type,
+            date: document.getElementById('mov-date').value,
+            time: document.getElementById('mov-time').value || '00:00',
+            amount,
+            note: document.getElementById('mov-note').value.trim()
+        };
+        if (!Array.isArray(acc.movements)) acc.movements = [];
+        const editId = document.getElementById('edit-mov-id').value;
+        if (editId) {
+            const i = acc.movements.findIndex(m => String(m.id) === String(editId));
+            if (i !== -1) acc.movements[i] = { ...acc.movements[i], ...data };
+        } else {
+            if (type === 'withdrawal' && amount > accBalance(acc) &&
+                !confirm(`El retiro (${formatCurrency(amount)}) es mayor al balance actual (${formatCurrency(accBalance(acc))}). ¿Registrarlo de todos modos?`)) return;
+            acc.movements.push({ id: Date.now(), ...data });
+        }
+        saveData();
+        refreshAllViews();
+        movModal.classList.add('hidden');
+        showToast(type === 'deposit' ? 'Depósito de capital registrado' : 'Retiro registrado');
+    });
+
+    function renderMovements() {
+        const body = document.querySelector('#movements-table tbody');
+        const empty = document.getElementById('movements-empty');
+        const totalsEl = document.getElementById('movements-totals');
+        if (!body) return;
+        const movs = [...getTableMovs()].sort((a, b) => opKey(a) < opKey(b) ? 1 : -1);
+        body.innerHTML = '';
+        let dep = 0, wd = 0;
+        movs.forEach(mv => {
+            const isDep = mv.type === 'deposit';
+            if (isDep) dep += Number(mv.amount); else wd += Number(mv.amount);
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td>${mv.date} <span style="font-size:0.8em; color:#7d8794">${mv.time || ''}</span></td>
+                <td><span class="type-pill ${isDep ? 'deposit' : 'sell'}"><i class="fas fa-${isDep ? 'circle-plus' : 'money-bill-transfer'}"></i>${isDep ? 'DEPÓSITO' : 'RETIRO'}</span></td>
+                <td class="${isDep ? 'mov-deposit' : 'profit-negative'}">${isDep ? '+' : '-'}${formatCurrency(mv.amount)}</td>
+                <td class="mov-note">${escapeHtml(mv.note || '—')}</td>
+                <td>
+                    <button class="btn-icon btn-edit-mov" data-id="${mv.id}" title="Editar"><i class="fas fa-edit"></i></button>
+                    <button class="btn-icon btn-delete-mov" data-id="${mv.id}" title="Borrar"><i class="fas fa-trash"></i></button>
+                </td>`;
+            body.appendChild(tr);
+        });
+        empty.classList.toggle('hidden', movs.length > 0);
+        document.getElementById('movements-table').classList.toggle('hidden', movs.length === 0);
+        totalsEl.innerHTML = movs.length
+            ? `<span class="mov-deposit">Depósitos +${formatCurrency(dep)}</span><span class="danger">Retiros -${formatCurrency(wd)}</span>`
+            : '';
+
+        body.querySelectorAll('.btn-edit-mov').forEach(b => b.addEventListener('click', () => openMovementModal(null, Number(b.dataset.id))));
+        body.querySelectorAll('.btn-delete-mov').forEach(b => b.addEventListener('click', () => {
+            if (!confirm('¿Borrar este movimiento de capital?')) return;
+            const acc = getCurrentAccount();
+            acc.movements = getMovs(acc).filter(m => m.id !== Number(b.dataset.id));
+            saveData();
+            refreshAllViews();
+        }));
+    }
+
     function renderOperationsTable() {
         operationsTableBody.innerHTML = '';
         const acc = getCurrentAccount();
@@ -535,6 +658,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.querySelectorAll('.op-select').forEach(cb => cb.addEventListener('change', updateDeleteButtonState));
 
+        renderMovements();
         renderAnalysis();
     }
 
@@ -584,19 +708,51 @@ document.addEventListener('DOMContentLoaded', () => {
     //  MÉTRICAS / ANÁLISIS
     // =====================================================
     // Balance antes de una fecha (para que la curva y el drawdown del periodo partan del balance real)
-    function balanceBefore(acc, start) {
-        if (!start) return acc.initialBalance;
-        return acc.operations.reduce((s, op) => op.date < start ? s + op.result : s, acc.initialBalance);
+    // --- Movimientos de capital (retiros / depósitos) ---
+    const getMovs = acc => (acc && Array.isArray(acc.movements)) ? acc.movements : [];
+    const movSigned = mv => (mv.type === 'deposit' ? 1 : -1) * (Number(mv.amount) || 0);
+    function accBalance(acc) {
+        const pnl = acc.operations.reduce((s, op) => s + (Number(op.result) || 0), 0);
+        const flows = getMovs(acc).reduce((s, mv) => s + movSigned(mv), 0);
+        return Number(acc.initialBalance) + pnl + flows;
     }
 
-    function computeMetrics(ops, startBalance) {
+    // Línea de tiempo combinada (operaciones + movimientos), ordenada por fecha/hora
+    function buildTimeline(ops, movs) {
+        const items = [
+            ...ops.map(op => ({ kind: 'op', key: opKey(op), seq: op.seq || 0, ref: op })),
+            ...movs.map(mv => ({ kind: 'mov', key: opKey(mv), seq: 1e9, ref: mv }))
+        ];
+        return items.sort((a, b) => a.key !== b.key ? (a.key < b.key ? -1 : 1) : a.seq - b.seq);
+    }
+
+    // Balance antes de una fecha (para que la curva y el drawdown del periodo partan del balance real)
+    function balanceBefore(acc, start) {
+        if (!start) return Number(acc.initialBalance);
+        const pnl = acc.operations.reduce((s, op) => op.date < start ? s + op.result : s, 0);
+        const flows = getMovs(acc).reduce((s, mv) => mv.date < start ? s + movSigned(mv) : s, 0);
+        return Number(acc.initialBalance) + pnl + flows;
+    }
+
+    function computeMetrics(ops, startBalance, movs = []) {
         const sorted = sortOps(ops);
         let lots = 0, net = 0, grossWin = 0, grossLoss = 0, wins = 0, losses = 0;
         let best = null, worst = null;
         let equity = startBalance, peak = startBalance, maxDD = 0, maxDDPct = 0;
         let streak = 0, maxLossStreak = 0;
+        let deposits = 0, withdrawals = 0, depCount = 0, wdCount = 0;
 
-        sorted.forEach(op => {
+        buildTimeline(sorted, movs).forEach(item => {
+            if (item.kind === 'mov') {
+                // Un retiro/depósito mueve el balance pero NO cuenta como drawdown ni como profit
+                const f = movSigned(item.ref);
+                if (f >= 0) { deposits += f; depCount++; } else { withdrawals += -f; wdCount++; }
+                equity += f;
+                peak += f;
+                if (equity > peak) peak = equity;
+                return;
+            }
+            const op = item.ref;
             const r = Number(op.result) || 0;
             lots += Number(op.lotSize) || 0;
             net += r;
@@ -626,16 +782,21 @@ document.addEventListener('DOMContentLoaded', () => {
             avgLot: count ? lots / count : 0,
             maxDD, maxDDPct, maxLossStreak,
             startBalance, endBalance: equity,
-            netPct: startBalance ? (net / startBalance) * 100 : 0
+            deposits, withdrawals, depCount, wdCount,
+            netFlows: deposits - withdrawals,
+            netPct: (startBalance + deposits) ? (net / (startBalance + deposits)) * 100 : 0
         };
     }
 
     function buildSummaryText(m) {
-        if (m.count === 0) return 'No hay operaciones en el rango seleccionado.';
+        const flowTxt = (m.depCount || m.wdCount)
+            ? ` Movimientos de capital: <span class="hl-gold">${m.depCount} depósito(s) por +${formatCurrency(m.deposits)}</span> y <span class="hl-red">${m.wdCount} retiro(s) por -${formatCurrency(m.withdrawals)}</span>; balance final ${formatCurrency(m.endBalance)}.`
+            : '';
+        if (m.count === 0) return 'No hay operaciones en el rango seleccionado.' + flowTxt;
         const pfTxt = m.profitFactor === Infinity ? '∞' : m.profitFactor.toFixed(2);
         const parts = [];
         parts.push(`Se ejecutaron <strong>${m.count}</strong> operaciones moviendo <strong class="hl-gold">${m.lots.toFixed(2)} lotes</strong> en total (promedio ${m.avgLot.toFixed(2)} por operación).`);
-        parts.push(`El resultado neto fue <span class="${m.net >= 0 ? 'hl-green' : 'hl-red'}">${m.net >= 0 ? '+' : ''}${formatCurrency(m.net)}</span> (${m.netPct >= 0 ? '+' : ''}${m.netPct.toFixed(2)}% sobre ${formatCurrency(m.startBalance)}), con un win rate de <strong>${m.winRate.toFixed(1)}%</strong> y profit factor de <strong>${pfTxt}</strong>.`);
+        parts.push(`El resultado neto fue <span class="${m.net >= 0 ? 'hl-green' : 'hl-red'}">${m.net >= 0 ? '+' : ''}${formatCurrency(m.net)}</span> (${m.netPct >= 0 ? '+' : ''}${m.netPct.toFixed(2)}% sobre ${formatCurrency(m.startBalance + m.deposits)}${m.deposits ? ' incl. depósitos' : ''}), con un win rate de <strong>${m.winRate.toFixed(1)}%</strong> y profit factor de <strong>${pfTxt}</strong>.`);
         parts.push(`El máximo drawdown fue de <span class="hl-red">${formatCurrency(m.maxDD)} (${m.maxDDPct.toFixed(2)}%)</span> desde el pico de balance; la racha más larga de pérdidas consecutivas fue de ${m.maxLossStreak}.`);
 
         let verdict;
@@ -645,7 +806,7 @@ document.addEventListener('DOMContentLoaded', () => {
         else if (m.avgLoss !== 0 && Math.abs(m.avgLoss) > m.avgWin) verdict = '<span class="hl-red">Periodo negativo:</span> la pérdida promedio supera a la ganancia promedio; revisar la relación riesgo/beneficio.';
         else verdict = '<span class="hl-red">Periodo negativo:</span> revisar entradas y gestión antes de aumentar lotaje.';
         parts.push(verdict);
-        return parts.join(' ');
+        return parts.join(' ') + flowTxt;
     }
 
     function renderAnalysis() {
@@ -653,7 +814,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!acc) return;
         const { start, end } = getTableRange();
         const ops = getTableOps();
-        const m = computeMetrics(ops, balanceBefore(acc, start));
+        const m = computeMetrics(ops, balanceBefore(acc, start), getTableMovs());
 
         const set = (id, txt) => { const el = document.getElementById(id); if (el) el.innerHTML = txt; };
         set('analysis-scope', (start || end)
@@ -677,6 +838,14 @@ document.addEventListener('DOMContentLoaded', () => {
         set('an-best', (m.best >= 0 ? '+' : '') + formatCurrency(m.best));
         set('an-worst', formatCurrency(m.worst));
         set('an-avg', `Promedio G ${formatCurrency(m.avgWin)} · P ${formatCurrency(m.avgLoss)}`);
+        set('an-wd', '-' + formatCurrency(m.withdrawals));
+        set('an-wd-sub', `${m.wdCount} retiro(s)`);
+        set('an-dep', '+' + formatCurrency(m.deposits));
+        set('an-dep-sub', `${m.depCount} depósito(s)`);
+        set('an-capital', formatCurrency(m.startBalance + m.netFlows));
+        set('an-capital-sub', `Inicial ${formatCurrency(m.startBalance)} ${m.netFlows >= 0 ? '+' : '-'} ${formatCurrency(Math.abs(m.netFlows))} neto`);
+        set('an-end', formatCurrency(m.endBalance));
+        set('an-end-sub', `Capital + profit del periodo`);
         set('analysis-summary', buildSummaryText(m));
     }
 
@@ -736,15 +905,23 @@ document.addEventListener('DOMContentLoaded', () => {
         const acc = getCurrentAccount();
         if (!acc) return;
 
-        const totalPnlAll = acc.operations.reduce((s, op) => s + op.result, 0);
-        const currentBalance = acc.initialBalance + totalPnlAll;
+        const currentBalance = accBalance(acc);
+        const allFlows = computeMetrics([], 0, getMovs(acc));
 
         const { start, end, label } = getPeriodRange();
         const ops = acc.operations.filter(op => inRange(op, start, end));
-        const m = computeMetrics(ops, balanceBefore(acc, start));
+        const movs = getMovs(acc).filter(mv => inRange(mv, start, end));
+        const m = computeMetrics(ops, balanceBefore(acc, start), movs);
 
         animateValue(totalBalanceEl, currentBalance, v => formatCurrency(v));
-        initialBalanceDisplay.textContent = formatCurrency(acc.initialBalance);
+        initialBalanceDisplay.innerHTML = formatCurrency(acc.initialBalance) +
+            ((allFlows.deposits || allFlows.withdrawals)
+                ? `<br><span class="mov-deposit">+${formatCurrency(allFlows.deposits)}</span> · <span class="danger">-${formatCurrency(allFlows.withdrawals)}</span>`
+                : '');
+        const wdEl = document.getElementById('cap-withdrawals');
+        const depEl = document.getElementById('cap-deposits');
+        if (wdEl) wdEl.textContent = '-' + formatCurrency(m.withdrawals);
+        if (depEl) depEl.textContent = `Depósitos +${formatCurrency(m.deposits)}`;
         winsCountEl.textContent = m.wins;
         lossesCountEl.textContent = m.losses;
         winrateEl.textContent = m.winRate.toFixed(1) + '%';
@@ -793,7 +970,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         return g;
                     },
                     segment: {
-                        borderColor: s => s.p1.parsed.y < s.p0.parsed.y ? '#FF4D5E' : '#A8FF2E'
+                        borderColor: s => {
+                            const k = (s.chart.data.datasets[0].kinds || [])[s.p1DataIndex];
+                            if (k === 'mov') return '#E6C46A';
+                            return s.p1.parsed.y < s.p0.parsed.y ? '#FF4D5E' : '#A8FF2E';
+                        },
+                        borderDash: s => ((s.chart.data.datasets[0].kinds || [])[s.p1DataIndex] === 'mov' ? [5, 4] : undefined)
                     }
                 }]
             },
@@ -812,7 +994,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         bodyColor: '#F4F6F8',
                         padding: 12,
                         displayColors: false,
-                        callbacks: { label: (i) => 'Balance: ' + formatCurrency(i.parsed.y) }
+                        callbacks: {
+                            label: (i) => {
+                                const note = (i.dataset.notes || [])[i.dataIndex];
+                                return note ? [note, 'Balance: ' + formatCurrency(i.parsed.y)] : 'Balance: ' + formatCurrency(i.parsed.y);
+                            }
+                        }
                     }
                 },
                 scales: {
@@ -838,18 +1025,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const { start, end } = getPeriodRange();
         const sortedOps = sortOps(acc.operations.filter(op => inRange(op, start, end)));
+        const movs = getMovs(acc).filter(mv => inRange(mv, start, end));
 
         let running = balanceBefore(acc, start);
         const labels = [start ? 'Inicio periodo' : 'Inicio'];
         const data = [running];
-        sortedOps.forEach(op => {
-            running += op.result;
-            labels.push(op.date);
+        const kinds = ['start'];
+        const notes = [null];
+        buildTimeline(sortedOps, movs).forEach(item => {
+            if (item.kind === 'mov') {
+                const f = movSigned(item.ref);
+                running += f;
+                notes.push(`${f >= 0 ? 'Depósito +' : 'Retiro -'}${formatCurrency(Math.abs(f))}`);
+            } else {
+                running += item.ref.result;
+                notes.push(null);
+            }
+            labels.push(item.ref.date);
             data.push(running);
+            kinds.push(item.kind);
         });
 
         performanceChart.data.labels = labels;
         performanceChart.data.datasets[0].data = data;
+        performanceChart.data.datasets[0].kinds = kinds;
+        performanceChart.data.datasets[0].notes = notes;
+        performanceChart.data.datasets[0].pointRadius = kinds.map(k => k === 'mov' ? 5 : 0);
+        performanceChart.data.datasets[0].pointBackgroundColor = '#E6C46A';
         performanceChart.update();
     }
 
@@ -1054,7 +1256,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const pageH = doc.internal.pageSize.getHeight();
         const { start, end } = getTableRange();
         const ops = sortOps(getTableOps());
-        const m = computeMetrics(ops, balanceBefore(acc, start));
+        const pdfMovs = [...getTableMovs()].sort((a, b) => opKey(a) < opKey(b) ? -1 : 1);
+        const m = computeMetrics(ops, balanceBefore(acc, start), pdfMovs);
 
         // Encabezado
         doc.setFillColor(8, 10, 9);
@@ -1097,8 +1300,35 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // ---- Análisis al final ----
+        // ---- Movimientos de capital ----
         let y = doc.lastAutoTable.finalY + 12;
+        if (pdfMovs.length) {
+            if (y > pageH - 50) { doc.addPage(); y = 20; }
+            doc.setFillColor(230, 196, 106);
+            doc.rect(14, y - 5, 3, 8, 'F');
+            doc.setFontSize(14);
+            doc.setTextColor(12, 15, 13);
+            doc.text('Retiros y Depósitos de Capital', 20, y + 1);
+            doc.autoTable({
+                startY: y + 6,
+                theme: 'grid',
+                head: [['Fecha', 'Hora', 'Tipo', 'Monto', 'Nota']],
+                body: pdfMovs.map(mv => [mv.date, mv.time || '', mv.type === 'deposit' ? 'DEPÓSITO' : 'RETIRO',
+                    (mv.type === 'deposit' ? '+' : '-') + formatCurrency(mv.amount), mv.note || '']),
+                styles: { fontSize: 8.5, cellPadding: 2.4, lineColor: [225, 228, 232] },
+                headStyles: { fillColor: [12, 15, 13], textColor: [230, 196, 106], fontStyle: 'bold' },
+                columnStyles: { 4: { cellWidth: 70 } },
+                didParseCell: (d) => {
+                    if (d.section === 'body' && d.column.index === 3) {
+                        d.cell.styles.textColor = d.cell.raw.startsWith('+') ? [170, 130, 30] : [210, 40, 55];
+                        d.cell.styles.fontStyle = 'bold';
+                    }
+                }
+            });
+            y = doc.lastAutoTable.finalY + 12;
+        }
+
+        // ---- Análisis al final ----
         if (y > pageH - 95) { doc.addPage(); y = 20; }
 
         doc.setFillColor(168, 255, 46);
@@ -1120,11 +1350,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 ['Máximo drawdown', '-' + formatCurrency(m.maxDD) + ` (${m.maxDDPct.toFixed(2)}%)`, 'Profit factor', pfTxt],
                 ['Ganancia bruta', '+' + formatCurrency(m.grossWin), 'Pérdida bruta', formatCurrency(m.grossLoss)],
                 ['Mejor operación', '+' + formatCurrency(m.best), 'Peor operación', formatCurrency(m.worst)],
+                ['Retiros', '-' + formatCurrency(m.withdrawals) + ` (${m.wdCount})`, 'Capital agregado', '+' + formatCurrency(m.deposits) + ` (${m.depCount})`],
                 ['Balance inicial periodo', formatCurrency(m.startBalance), 'Balance final', formatCurrency(m.endBalance)]
             ],
             didParseCell: (d) => {
                 if (d.row.index === 1 && d.column.index === 1) d.cell.styles.textColor = m.net >= 0 ? [46, 140, 20] : [210, 40, 55];
                 if (d.row.index === 2 && d.column.index === 1) d.cell.styles.textColor = [210, 40, 55];
+                if (d.row.index === 5 && d.column.index === 1 && m.withdrawals) d.cell.styles.textColor = [210, 40, 55];
+                if (d.row.index === 5 && d.column.index === 3 && m.deposits) d.cell.styles.textColor = [170, 130, 30];
             },
             alternateRowStyles: { fillColor: [246, 248, 246] }
         });

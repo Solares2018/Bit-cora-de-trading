@@ -169,6 +169,15 @@
                         </div>
                     </div>
 
+                    <div class="stat-card capital-card">
+                        <div class="card-icon gold"><i class="fas fa-money-bill-transfer"></i></div>
+                        <div class="card-info">
+                            <h3>Retiros</h3>
+                            <p class="stat-value danger" id="cap-withdrawals">$0.00</p>
+                            <span class="subtitle" id="cap-deposits">Depósitos +$0.00</span>
+                        </div>
+                    </div>
+
                     <div class="stat-card winrate-card">
                         <div class="card-icon gold"><i class="fas fa-bullseye"></i></div>
                         <div class="card-info">
@@ -240,6 +249,12 @@
                         <button class="btn btn-primary" id="btn-add-operation">
                             <i class="fas fa-plus"></i> Nueva Operación
                         </button>
+                        <button class="btn btn-withdraw" id="btn-add-withdrawal">
+                            <i class="fas fa-money-bill-transfer"></i> Retiro
+                        </button>
+                        <button class="btn btn-deposit" id="btn-add-deposit">
+                            <i class="fas fa-circle-plus"></i> Agregar Capital
+                        </button>
                         <button class="btn btn-secondary" id="btn-import-pdf">
                             <i class="fas fa-file-upload"></i> Importar PDF
                         </button>
@@ -267,6 +282,46 @@
                                 <i class="fas fa-upload"></i> Cargar Reporte
                             </button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Modal Retiro / Depósito -->
+                <div id="movement-modal" class="modal hidden">
+                    <div class="modal-content">
+                        <span class="close-modal" id="close-movement-modal">&times;</span>
+                        <h2 id="movement-modal-title">Registrar Retiro</h2>
+                        <p class="mov-hint" id="mov-balance-hint"></p>
+                        <form id="movement-form">
+                            <input type="hidden" id="edit-mov-id">
+                            <div class="form-group">
+                                <label>Tipo de Movimiento</label>
+                                <div class="switch-field mov-switch">
+                                    <input type="radio" id="radio-mov-withdrawal" name="mov-type" value="withdrawal" checked />
+                                    <label for="radio-mov-withdrawal">Retiro</label>
+                                    <input type="radio" id="radio-mov-deposit" name="mov-type" value="deposit" />
+                                    <label for="radio-mov-deposit">Depósito (agregar capital)</label>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label>Fecha</label>
+                                    <input type="date" id="mov-date" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Hora</label>
+                                    <input type="time" id="mov-time">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Monto ($)</label>
+                                <input type="number" step="0.01" min="0.01" id="mov-amount" placeholder="Ej. 500" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Nota (opcional)</label>
+                                <input type="text" id="mov-note" maxlength="120" placeholder="Ej. Retiro de ganancias de octubre">
+                            </div>
+                            <button type="submit" class="btn btn-submit" id="movement-submit-btn">Guardar</button>
+                        </form>
                     </div>
                 </div>
 
@@ -365,6 +420,29 @@
                     </div>
                 </div>
 
+                <!-- Retiros y depósitos de capital -->
+                <div class="movements-panel">
+                    <div class="movements-head">
+                        <h2><i class="fas fa-vault"></i> Retiros y Depósitos de Capital</h2>
+                        <div class="movements-totals" id="movements-totals"></div>
+                    </div>
+                    <p class="movements-empty" id="movements-empty">Aún no hay retiros ni depósitos en este rango. Usa los botones <strong>Retiro</strong> o <strong>Agregar Capital</strong>.</p>
+                    <div class="table-container">
+                        <table id="movements-table" class="hidden">
+                            <thead>
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Monto</th>
+                                    <th>Nota</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody></tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Análisis de rendimiento (final de página) -->
                 <div class="analysis-panel" id="analysis-panel">
                     <div class="analysis-header">
@@ -414,6 +492,29 @@
                             <span class="metric-label">Mejor / Peor Operación</span>
                             <span class="metric-value small"><span class="success" id="an-best">$0</span> <span class="sep">/</span> <span class="danger" id="an-worst">$0</span></span>
                             <span class="metric-sub" id="an-avg">Promedio G $0 · P $0</span>
+                        </div>
+                    </div>
+
+                    <div class="analysis-grid capital-grid">
+                        <div class="metric">
+                            <span class="metric-label">Total Retirado</span>
+                            <span class="metric-value danger" id="an-wd">$0.00</span>
+                            <span class="metric-sub" id="an-wd-sub">0 retiro(s)</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Capital Agregado</span>
+                            <span class="metric-value gold-text" id="an-dep">$0.00</span>
+                            <span class="metric-sub" id="an-dep-sub">0 depósito(s)</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Capital Base Neto</span>
+                            <span class="metric-value silver" id="an-capital">$0.00</span>
+                            <span class="metric-sub" id="an-capital-sub">Inicial + depósitos − retiros</span>
+                        </div>
+                        <div class="metric">
+                            <span class="metric-label">Balance Final</span>
+                            <span class="metric-value silver" id="an-end">$0.00</span>
+                            <span class="metric-sub" id="an-end-sub">Capital + profit del periodo</span>
                         </div>
                     </div>
 

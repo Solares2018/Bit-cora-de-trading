@@ -599,8 +599,8 @@ body {
 /* ======= Tarjetas ======= */
 .stats-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-    gap: 20px;
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+    gap: 16px;
     margin-bottom: 34px;
 }
 
@@ -1579,3 +1579,64 @@ input[type="checkbox"] { accent-color: var(--neon); cursor: pointer; }
     .sync-badge span { display: none; }
     .sync-badge { padding: 6px 9px; }
 }
+
+/* ================= Retiros / Depósitos ================= */
+.btn-withdraw {
+    background: rgba(255, 77, 94, 0.08);
+    border: 1px solid rgba(255, 77, 94, 0.55);
+    color: #ff7b88;
+}
+.btn-withdraw:hover { background: rgba(255, 77, 94, 0.16); color: #fff; box-shadow: 0 0 20px rgba(255, 77, 94, 0.3); }
+.btn-deposit {
+    background: rgba(230, 196, 106, 0.08);
+    border: 1px solid rgba(230, 196, 106, 0.6);
+    color: var(--gold);
+}
+.btn-deposit:hover { background: rgba(230, 196, 106, 0.16); color: #fff3cf; box-shadow: 0 0 20px rgba(230, 196, 106, 0.3); }
+
+.btn-submit-red {
+    background: linear-gradient(135deg, #ff8a95 0%, var(--danger) 55%, #d93347 100%) !important;
+    color: #fff !important;
+}
+.btn-submit-red:hover { box-shadow: 0 8px 28px rgba(255, 77, 94, 0.4) !important; }
+
+.mov-switch #radio-mov-withdrawal:checked + label {
+    background: var(--danger); color: #fff; font-weight: 700; box-shadow: 0 0 18px rgba(255, 77, 94, 0.4);
+}
+.mov-switch #radio-mov-deposit:checked + label {
+    background: var(--gold); color: #1a1405; font-weight: 700; box-shadow: 0 0 18px rgba(230, 196, 106, 0.4);
+}
+.mov-hint { color: var(--silver-2); font-size: .85rem; margin: -8px 0 16px; }
+
+.type-pill.deposit { color: var(--gold); background: rgba(230, 196, 106, 0.1); border: 1px solid rgba(230, 196, 106, 0.35); }
+.mov-deposit { color: var(--gold); font-family: var(--font-mono); font-weight: 600; }
+.mov-note { color: var(--silver-2); white-space: normal; max-width: 360px; }
+.btn-edit-mov { color: var(--gold); }
+.btn-delete-mov { color: var(--danger); }
+
+.movements-panel {
+    margin-top: 24px;
+    padding: 22px;
+    border-radius: 18px;
+    background: var(--panel-bg);
+    border: 1px solid var(--glass-border);
+    position: relative;
+    overflow: hidden;
+}
+.movements-panel::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, transparent, var(--gold), var(--danger), transparent);
+    opacity: .7;
+}
+.movements-head {
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;
+    margin-bottom: 14px;
+}
+.movements-head h2 { font-size: 1.2rem; color: var(--silver); display: flex; align-items: center; gap: 10px; }
+.movements-head h2 i { color: var(--gold); }
+.movements-totals { display: flex; gap: 16px; font-family: var(--font-mono); font-weight: 600; font-size: .92rem; }
+.movements-empty { color: var(--silver-2); font-size: .9rem; padding: 6px 2px; }
+.movements-empty.hidden, #movements-table.hidden { display: none; }
+
+.capital-grid { margin-top: 14px; }
